@@ -1,4 +1,4 @@
-function [Value_data,Rcost,cost_sum,net_profit, initial_coalition]= Value_main(agents,tasks,Graph)
+function [Value_data,Rcost,cost_sum,net_profit, initial_coalition]= Value_main(agents,tasks,Graph,Value_Params,AddPara)
 % =========================================================================
 %  函数名称：Value_main
 %
@@ -45,48 +45,37 @@ function [Value_data,Rcost,cost_sum,net_profit, initial_coalition]= Value_main(a
 %
 % =========================================================================
 
-Value_Params=Value_init(length(agents),length(tasks));
-
-for i=1:Value_Params.N %包括agent标号，索引以及初始联盟结构
-    Value_data(i).agentID=agents(i).id;
-    Value_data(i).agentIndex=i;
-    Value_data(i).iteration=0;%联盟改变次数
-    Value_data(i).unif=0;%均匀随机变量
-    Value_data(i).coalitionstru=zeros(Value_Params.M+1,Value_Params.N);
-    Value_data(i).initbelief=zeros(Value_Params.M+1,3);
-end
-
-for k=1: Value_Params.N   %所有agents放在void 任务中
-    for j=1:Value_Params.M+1
-        if j==Value_Params.M+1
-            for i=1:Value_Params.N
-                Value_data(k).coalitionstru(j,i)=agents(i).id;
-            end
+% 初始化所有Value_data结构体、联盟结构、belief和观测矩阵
+for i = 1:Value_Params.N
+    % 基本信息初始化
+    Value_data(i).agentID = agents(i).id;
+    Value_data(i).agentIndex = i;
+    Value_data(i).iteration = 0; % 联盟改变次数
+    Value_data(i).unif = 0; % 均匀随机变量
+    Value_data(i).coalitionstru = zeros(Value_Params.M+1, Value_Params.N);
+    Value_data(i).initbelief = zeros(Value_Params.M+1, 3);
+    
+    % 将所有机器人放在空任务联盟中
+    Value_data(i).coalitionstru(Value_Params.M+1, :) = [agents.id];
+    
+    % 初始化belief和观测矩阵
+    for j = 1:Value_Params.M
+        Value_data(i).initbelief(j, 1:end) = Value_Params.InitialBelief;
+        for k = 1:Value_Params.K
+            Value_data(i).observe(j, k) = 0;
+            Value_data(i).preobserve(j, k) = 0;
         end
     end
 end
 
-for i=1:Value_Params.N %每一个agent对所有任务的任务值持有一个初始belief
-    for j=1:Value_Params.M
-        %Value_data(i).initbelief(j,1:end)=drchrnd([1,1,1],1)';
-        Value_data(i).initbelief(j,1:end)=[1/3,1/3,1/3]';
-    end
-end
+% 初始化summatrix
+summatrix = zeros(Value_Params.M, Value_Params.K);
 
-for i=1:Value_Params.N
-    for j=1:Value_Params.M
-        for k=1:3
-            Value_data(i).observe(j,k)=0;%创建每个agent对当前所在任务联盟的观测矩阵
-            Value_data(i).preobserve(j,k)=0;
-            summatrix(j,k)=0;
-        end
-    end
-end
-
-%此处应该有个for/which循环
-
+%% 主要计算过程
 for counter=1:50
-    for i=1:Value_Params.N   %一会要改回来
+
+    % 这部分代码的功能是初始化并更新每个智能体（agent）在每轮迭代中的任务估计概率（prob）
+    for i=1:Value_Params.N   
         for j=1:Value_Params.M
             Value_data(i).tasks(j).prob(counter,:)=Value_data(i).initbelief(j,1:end);
         end
@@ -97,8 +86,6 @@ for counter=1:50
     doneflag=0;   %初始标志位0，收敛标志位为1
     
     while( doneflag==0)
-        
-        %communication
         
         %所有agents选择自主任务
         for ii=1:Value_Params.N
@@ -111,45 +98,76 @@ for counter=1:50
         else
             lastTime=T;
         end
-        % length(find(incremental==0))
-        Value_data=Value_communication(agents, tasks, Value_data, Value_Params,Graph);%邻居agent间彼此通信
         
-        %convergence check
+        % 智能体之间通信
+        Value_data=Value_communication(agents, tasks, Value_data, Value_Params,Graph);
         
-        if (T-lastTime>2)
-            %     if (T==100)
+        
+        % 检查是否收敛
+        if (T-lastTime>2) %连续两次迭代未改变联盟结构，认为收敛
             doneflag=1;
         else
-            T=T+1;
+            T=T+1; 
         end
     end
     
-    if counter==1
+    if counter==1 %记录第一次联盟形成结构
         for j=1:Value_Params.M
-            initial_coalition(j).member=find(Value_data(1).coalitionstru(j,:)~=0);
+            initial_coalition(j).member=find(Value_data(1).coalitionstru(j,:)~=0); % 记录联盟成员
         end
     end
     
-    %记录一次联盟形成后观测次数
-    for i=1:Value_Params.N
-        if  curnumberrow(i)~=Value_Params.M+1
-            for m=1:20
-                taskindex=find(tasks(curnumberrow(i)).value== tasks(curnumberrow(i)).WORLD.value);
-                nontaskindex=find(tasks(curnumberrow(i)).value~= tasks(curnumberrow(i)).WORLD.value);
-                if rand<=agents(i).detprob
-                    Value_data(i).observe(curnumberrow(i),  taskindex)= Value_data(i).observe(curnumberrow(i),taskindex)+1;%更新观测矩阵
-                    m=m+1;
-                elseif (agents(i).detprob<rand)&&(rand<=(1-1/2*agents(i).detprob))
-                    Value_data(i).observe(curnumberrow(i),  nontaskindex(1))= Value_data(i).observe(curnumberrow(i),nontaskindex(1))+1;%更新观测矩阵
-                    m=m+1;
+    %% 根据形成的联盟实现智能体对当前任务的多次随机观测更新
+    for i = 1:Value_Params.N
+        % 遍历每个智能体 i，N 是智能体总数
+        
+        if curnumberrow(i) ~= Value_Params.M+1
+            % 判断智能体 i 当前所在任务行号是否不是空任务行（M+1 代表空任务）
+            % 如果是空任务，则跳过
+            
+            for m = 1:AddPara.NumObs
+                % 每个智能体在该任务上执行 20 次观测尝试
+                
+                % 找到当前任务行中正确子任务的索引
+                taskindex = find(tasks(curnumberrow(i)).value == tasks(curnumberrow(i)).WORLD.value);
+                
+                % 找到当前任务行中错误/非目标子任务的索引
+                nontaskindex = find(tasks(curnumberrow(i)).value ~= tasks(curnumberrow(i)).WORLD.value);
+                
+                if rand <= agents(i).detprob
+                    % 生成随机数，如果小于等于智能体检测概率 detprob
+                    % 表示智能体成功检测到正确任务
+                    Value_data(i).observe(curnumberrow(i), taskindex) = ...
+                        Value_data(i).observe(curnumberrow(i), taskindex) + 1;
+                    % 对智能体 i 的观测矩阵 observe，在当前任务行 taskindex 上加 1
+                    
+                    m = m + 1;
+                    % 计数器 m 增加（可选，因为 for 循环会自动加 1）
+                    
+                elseif (agents(i).detprob < rand) && (rand <= (1 - 1/2*agents(i).detprob))
+                    % 如果随机数大于 detprob 且小于等于 (1 - detprob/2)
+                    % 表示智能体观察到了错误的第一个非目标任务
+                    Value_data(i).observe(curnumberrow(i), nontaskindex(1)) = ...
+                        Value_data(i).observe(curnumberrow(i), nontaskindex(1)) + 1;
+                    % 对 observe 矩阵在错误任务索引 nontaskindex(1) 上加 1
+                    
+                    m = m + 1;
+                    % 计数器增加
+                    
                 else
-                    Value_data(i).observe(curnumberrow(i),  nontaskindex(2))= Value_data(i).observe(curnumberrow(i),nontaskindex(2))+1;%更新观测矩阵
-                    m=m+1;
+                    % 剩余情况：智能体观察到了错误的第二个非目标任务
+                    Value_data(i).observe(curnumberrow(i), nontaskindex(2)) = ...
+                        Value_data(i).observe(curnumberrow(i), nontaskindex(2)) + 1;
+                    % 对 observe 矩阵在错误任务索引 nontaskindex(2) 上加 1
+                    
+                    m = m + 1;
+                    % 计数器增加
                 end
             end
         end
     end
-    
+
+    %% 综合所有智能体信息观测矩阵
     for j=1:Value_Params.M
         for k=1:3
             for i=1:Value_Params.N
@@ -166,38 +184,64 @@ for counter=1:50
             end
         end
     end
+
+    %% 根据联盟形成后的结果更新信念
+    % for i=1:Value_Params.N
+    %     for j=1:Value_Params.M
+    %         Value_data(i).initbelief(j,1:end)=drchrnd([1+Value_data(i).observe(j,1),1+Value_data(i).observe(j,2),1+Value_data(i).observe(j,3)],1)';
+    %         %  Value_data(i).initbelief(j,1:end)=[1/3,1/3,1/3];
+    %     end
+    % end
     
-    %
-    %一次联盟形成后根据观测更新belief
-    for i=1:Value_Params.N
-        for j=1:Value_Params.M
-            Value_data(i).initbelief(j,1:end)=drchrnd([1+Value_data(i).observe(j,1),1+Value_data(i).observe(j,2),1+Value_data(i).observe(j,3)],1)';
-            %  Value_data(i).initbelief(j,1:end)=[1/3,1/3,1/3];
+
+    %% 信息融合
+    % 计算每个机器人上的共性函数
+
+    % 局部更新对所有任务的共性函数矩阵
+
+    % 根据每个节点的连接拓扑根据Metropolis-Hastings算法得到权重矩阵
+
+    % 通过线性共识算法更新状态矩阵
+
+    % 每个机器人反推得到一致的信念
+
+    % 再进行联盟形成
+    
+
+    %% 计算联盟成本、收益和净利润
+    % 初始化成本矩阵，行代表任务，列代表智能体
+    Rcost = zeros(Value_Params.M, Value_Params.N);
+    
+    % 计算每个任务联盟的行动成本
+    for j = 1:Value_Params.M
+        % 找到任务 j 的联盟成员（非零位置对应的智能体ID）
+        coalition(j).members = find(Value_data(1).coalitionstru(j,:) ~= 0);
+        
+        % 计算联盟中每个智能体到任务的距离成本
+        for i = 1:length(coalition(j).members)
+            agentIdx = coalition(j).members(i); % 智能体索引
+            % 成本 = 欧氏距离 × 燃料单价
+            Rcost(j,i) = sqrt((agents(agentIdx).x - tasks(j).x)^2 + ...
+                             (agents(agentIdx).y - tasks(j).y)^2) * agents(agentIdx).fuel;
         end
     end
     
-    Rcost=zeros(Value_Params.M,Value_Params.N);
-    for j=1:Value_Params.M
-        lianmeng(j).member=find(Value_data(1).coalitionstru(j,:)~=0);
-        for i=1:length(lianmeng(j).member)
-            Rcost(j,i)=sqrt((agents(lianmeng(j).member(i)).x-tasks(j).x)^2 ...
-                +(agents(lianmeng(j).member(i)).y-tasks(j).y)^2)*agents(lianmeng(j).member(i)).fuel;
+    % 计算当前轮次的总成本
+    cost_sum(counter) = 0;
+    for j = 1:size(Rcost,1)      % 遍历所有任务
+        for i = 1:size(Rcost,2)  % 遍历所有智能体位置
+            cost_sum(counter) = cost_sum(counter) + Rcost(j,i);
         end
     end
     
-    cost_sum(counter)=0;
-    for j=1:size(Rcost,1)
-        for i=1:size(Rcost,2)
-            cost_sum(counter)=cost_sum(counter)+Rcost(j,i);
-        end
+    % 计算当前轮次的总收益（所有任务价值之和）
+    revenue_sum(counter) = 0;
+    for j = 1:Value_Params.M
+        revenue_sum(counter) = revenue_sum(counter) + tasks(j).value;
     end
     
-    revenue_sum(counter)=0;
-    for j=1:Value_Params.M
-        revenue_sum(counter)=revenue_sum(counter)+tasks(j).value;
-    end
-    
-    net_profit(counter)= revenue_sum(counter)- cost_sum(counter);
+    % 计算净利润 = 总收益 - 总成本
+    net_profit(counter) = revenue_sum(counter) - cost_sum(counter);
     
     counter=counter+1;
     
