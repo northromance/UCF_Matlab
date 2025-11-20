@@ -1,69 +1,65 @@
 clear;
-% 注释
+% 清除工作区并初始化
 clc;
 close all;
 %for t_iteration=1:50
 tic
 SEED=24375;
-rand('seed',SEED);%设置随机数，后面可能用得到
+rand('seed',SEED); % 设置随机种子以保证结果可复现
 
 WORLD.XMIN=0;
 WORLD.XMAX=100;
 WORLD.YMIN=0;
 WORLD.YMAX=100;
 WORLD.ZMIN=0;
-WORLD.ZMAX=0;%2维空间
-WORLD.value=[300,500,1000];%任务值为离散型随机变量，在50-200取离散值
+WORLD.ZMAX=0; % 二维平面
+WORLD.value=[300,500,1000]; % 任务价值可能取值集合
 
-N=10;%agent数目
-M=6;%任务数目
+N=10; % agent 数量
+M=6;  % 任务数量
 
-%% 初始化agents和tasks
+%% 初始化 agents 和 tasks
 for j=1:M
     tasks(j).id=j;
     tasks(j).x=round(rand(1)*(WORLD.XMAX-WORLD.XMIN)+WORLD.XMIN);
     tasks(j).y=round(rand(1)*(WORLD.YMAX-WORLD.YMIN)+WORLD.YMIN);
-    %     tasks(j).z=rand(1)*(WORLD.ZMAX-WORLD.ZMIN)+WORLD.ZMIN;
-    tasks(j).value=WORLD.value(randi(length(WORLD.value),1,1));
-    %随机选择一个UAV进行更新;%randi是matlab中能产生均匀分布的伪随机整数的新函数
-    tasks(j).WORLD.value=[300,500,1000];%任务值为离散型随机变量，在50-200取离散值
+    % tasks(j).z=rand(1)*(WORLD.ZMAX-WORLD.ZMIN)+WORLD.ZMIN; % 如需 3 维可启用
+    tasks(j).value=WORLD.value(randi(length(WORLD.value),1,1)); % 随机分配任务价值
+    tasks(j).WORLD.value=[300,500,1000]; % 任务可能价值的冗余存储
 end
 
 for i=1:N
     agents(i).id=i;
-    agents(i).vel=2;%巡航速度，用于判断后面任务奖励折现
-    agents(i).fuel=1;%油耗/m
+    agents(i).vel=2; % 巡逻速度
+    agents(i).fuel=1; % 燃料/单位距离 (示例值)
     agents(i).x=round(rand(1)*(WORLD.XMAX-WORLD.XMIN)+WORLD.XMIN);
     agents(i).y=round(rand(1)*(WORLD.YMAX-WORLD.YMIN)+WORLD.YMIN);
-    % agents(i).detprob=0.9+randn(1);
+    % agents(i).detprob=0.9+randn(1); % 可用于设置探测概率的随机化示例
 end
 for i=1:N
-    agents(i).detprob=1;
+    agents(i).detprob=1; % 探测概率（当前设为 1）
     %agents(i).detprob=0.9+0.1*rand(1);
 end
-%save('C:\Users\UGV\Desktop\TASE修稿\TASE_仿真修改\仿真\data1.mat','agents','tasks','N','M')
+% 可选：将初始化数据保存到文件（示例路径，已注释）
+% save('C:\Users\UGV\Desktop\data1.mat','agents','tasks','N','M')
 Value_Params=Value_init(N,M);
 
-%% 生成一个连接图
-% 生成一个最小生成树形成的矩阵
+%% 构建初始图
+% 生成图结构（用于建模 agent 间的邻接关系）并返回结果
 [p, result] = Value_graph(agents, Value_Params);
 
-% 将 result 的第一行提取为 S，边的起点
+% 从 result 提取起点 S 和终点 E
 S = result(1, :);
-
-% 将 result 的第二行提取为 E，边的终点
 E = result(2, :);
 
-% 初始化图矩阵 G，大小为 N x N，初始值全为 0
-% 假设 N 已经在工作空间中定义
+% 构造邻接矩阵 G（N x N），并使其对称得到无向图 Graph
 G = zeros(N);
-
 for j=1:size(result,2)
     G(result(1,j),result(2,j))=1;
 end
 Graph=G+G';
 
-%% 计算
+% 运行主计算函数，得到价值数据、成本、净收益及初始联盟结构
 [Value_data,Rcost,cost_sum,net_profit, initial_coalition]=Value_main(agents,tasks,Graph);
 toc
 
@@ -72,24 +68,18 @@ toc
 %  total_profit(t_iteration)=net_profit(end);
 % end
 
-%% 联盟成员
-
-% 联盟成员
+%% 提取联盟成员
+% 找出每个联盟中非零成员的索引
 for j=1:Value_Params.M
     lianmengchengyuan(j).member=find(Value_data(1).coalitionstru(j,:)~=0);
 end
 
-%% 绘图
+% 绘制任务与 agent 的分配情况
 figure()
 PlotValue(agents,tasks,lianmengchengyuan,G)
 axis([0,100,0,100])
-% hold on
-% initialValue2(TUAVs(RUAV_data(2).accept),RUAVs(2))
-% hold on
-% initialValue3(TUAVs(RUAV_data(3).accept),RUAVs(3))
 xlabel('x-axis (m)','FontName','Times New Roman','FontSize',14)
 ylabel('y-axis (m)','FontName','Times New Roman','FontSize',14)
-%set(gca, 'FontSize', 12)
 grid on
 
 % figure()
@@ -98,26 +88,26 @@ grid on
 % ylabel('Position in y(m) ','FontSize', 14)
 % grid on
 
+% 绘制任务分配连线图
 figure()
 VlineAssignments(agents,tasks,G)
 xlabel('x-axis (m)','FontName','Times New Roman','FontSize',14)
 ylabel('y-axis (m)','FontName','Times New Roman','FontSize',14)
-%set(gca, 'FontSize', 12)
 grid on
 axis([0,100,0,100])
 
 
 
-% 计算最终形成的价值
-for i=1:N %精确监测能力
+% 计算每个 agent 对每个任务在各回合的期望收益
+for i=1:N
     for j=1:M
         for k=1:50
-            sumprob(i,j).value(k)=Value_data(i).tasks(j).prob(k,1)*300+Value_data(i).tasks(j).prob(k,2)*500+Value_data(i).tasks(j).prob(k,3)*1000;
+            sumprob(i,j).value(k)=Value_data(i).tasks(j).prob(k,1)*300 + Value_data(i).tasks(j).prob(k,2)*500 + Value_data(i).tasks(j).prob(k,3)*1000;
         end
     end
 end
 
-
+% 绘制每个任务的期望收益曲线（每 4 回合为一点，按 agent 区分）
 time=1:4:50;
 for j=1:M
     figure()
@@ -129,6 +119,8 @@ for j=1:M
     ylabel('Expected task revenue','FontName','Times New Roman','FontSize',14);
     grid on
 end
+
+% 绘制全局效用随迭代次数的变化
 figure()
 plot(1:20,net_profit,'o-')
 xlabel('Number of iterations ','FontSize', 14)
