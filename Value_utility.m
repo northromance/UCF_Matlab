@@ -17,8 +17,7 @@ individualrevenue=revenue/length(numberofcoworker);
 if (numberrow==Value_Params.M+1)
     cost=0;
 else
-cost=sqrt((agents(numbercolumn).x-tasks(numberrow).x)^2 ...
-    +(agents(numbercolumn).y-tasks(numberrow).y)^2)*agents(numbercolumn).fuel;
+cost=sqrt((agents(numbercolumn).x-tasks(numberrow).x)^2 +(agents(numbercolumn).y-tasks(numberrow).y)^2)*agents(numbercolumn).fuel;
 
 numbercolumn;
 numberrow;

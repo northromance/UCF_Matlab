@@ -66,6 +66,9 @@ for j=1:Value_Params.M
     lianmengchengyuan(j).member=find(Value_data(1).coalitionstru(j,:)~=0);
 end
 
+%% 打印
+fprintf('Total cost: %.2f\n', 10);
+
 
 %% 绘图
 % % 绘制任务与 agent 的分配情况
