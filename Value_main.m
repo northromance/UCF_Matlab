@@ -3,6 +3,38 @@ function [Value_data,Rcost,cost_sum,net_profit, initial_coalition]= Value_main(a
 % Value_main: 联盟形成的主计算函数
 % =========================================================================
 
+%% 第三步：计算Metropolis-Hastings权重矩阵
+W = zeros(Value_Params.N, Value_Params.N);
+
+for i = 1:Value_Params.N
+    % 找到智能体i的邻居（包括自己）
+    neighbors_i = find(Graph(i,:) > 0);
+    neighbors_i = [neighbors_i, i]; % 添加自己
+    neighbors_i = unique(neighbors_i); % 去除重复
+    degree_i = length(neighbors_i) - 1; % 邻居数量（不包括自己）
+    
+    for j = 1:Value_Params.N
+        if i == j
+            % 对角元素：W(i,i) = 1 - sum(W(i,j)) for j≠i
+            W(i,i) = 0; % 先设为0，后面计算
+        elseif Graph(i,j) > 0 % i和j是邻居
+            neighbors_j = find(Graph(j,:) > 0);
+            neighbors_j = [neighbors_j, j];
+            neighbors_j = unique(neighbors_j);
+            degree_j = length(neighbors_j) - 1;
+            
+            % Metropolis-Hastings权重公式
+            W(i,j) = 1 / (1 + max(degree_i, degree_j));
+        else
+            % 非邻居节点权重为0
+            W(i,j) = 0;
+        end
+    end
+    
+    % 计算对角元素，确保行和为1
+    W(i,i) = 1 - sum(W(i,1:Value_Params.N)) + W(i,i);
+end
+
 % 初始化所有Value_data结构体、联盟结构、belief和观测矩阵
 for i = 1:Value_Params.N
     % 基本信息初始化
@@ -120,22 +152,22 @@ for counter=1:50
     end
 
     %% 综合所有智能体信息观测矩阵
-    for j=1:Value_Params.M
-        for k=1:3
-            for i=1:Value_Params.N
-                summatrix(j,k)=summatrix(j,k)+ Value_data(i).observe(j,  k)-Value_data(i).preobserve(j,  k);
-            end
-        end
-    end
-    
-    for i=1:Value_Params.N
-        for j=1:Value_Params.M
-            for k=1:3
-                Value_data(i).preobserve(j,k)= summatrix(j,k);
-                Value_data(i).observe(j,  k)= summatrix(j,k);
-            end
-        end
-    end
+    % for j=1:Value_Params.M
+    %     for k=1:3
+    %         for i=1:Value_Params.N
+    %             summatrix(j,k)=summatrix(j,k)+ Value_data(i).observe(j,  k)-Value_data(i).preobserve(j,  k);
+    %         end
+    %     end
+    % end
+    % 
+    % for i=1:Value_Params.N
+    %     for j=1:Value_Params.M
+    %         for k=1:3
+    %             Value_data(i).preobserve(j,k)= summatrix(j,k);
+    %             Value_data(i).observe(j,  k)= summatrix(j,k);
+    %         end
+    %     end
+    % end
 
 
     %% 根据联盟形成后的结果更新信念
