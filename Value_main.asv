@@ -1,55 +1,55 @@
 function [Value_data,Rcost,cost_sum,net_profit, initial_coalition]= Value_main(agents,tasks,Graph,Value_Params,AddPara)
 % =========================================================================
-% Value_main: ÁªÃËĞÎ³ÉµÄÖ÷¼ÆËãº¯Êı
+% Value_main: è”ç›Ÿå½¢æˆçš„ä¸»è®¡ç®—å‡½æ•°
 % =========================================================================
 
-%% µÚÈı²½£º¼ÆËãMetropolis-HastingsÈ¨ÖØ¾ØÕó
+%% ç¬¬ä¸‰æ­¥ï¼šè®¡ç®—Metropolis-Hastingsæƒé‡çŸ©é˜µ
 
-% ¸ù¾İµ±Ç°Á¬½ÓµÄÍØÆËÍ¼¼ÆËãÈ¨ÖØ¾ØÕó
+% æ ¹æ®å½“å‰è¿æ¥çš„æ‹“æ‰‘å›¾è®¡ç®—æƒé‡çŸ©é˜µ
 W = zeros(Value_Params.N, Value_Params.N);
 for i = 1:Value_Params.N
-    % ÕÒµ½ÖÇÄÜÌåiµÄÁÚ¾Ó£¨°üÀ¨×Ô¼º£©
+    % æ‰¾åˆ°æ™ºèƒ½ä½“içš„é‚»å±…ï¼ˆåŒ…æ‹¬è‡ªå·±ï¼‰
     neighbors_i = find(Graph(i,:) > 0);
-    neighbors_i = [neighbors_i, i]; % Ìí¼Ó×Ô¼º
-    neighbors_i = unique(neighbors_i); % È¥³ıÖØ¸´
-    degree_i = length(neighbors_i) - 1; % ÁÚ¾ÓÊıÁ¿£¨²»°üÀ¨×Ô¼º£©
+    neighbors_i = [neighbors_i, i]; % æ·»åŠ è‡ªå·±
+    neighbors_i = unique(neighbors_i); % å»é™¤é‡å¤
+    degree_i = length(neighbors_i) - 1; % é‚»å±…æ•°é‡ï¼ˆä¸åŒ…æ‹¬è‡ªå·±ï¼‰
     
     for j = 1:Value_Params.N
         if i == j
-            % ¶Ô½ÇÔªËØ£ºW(i,i) = 1 - sum(W(i,j)) for j¡Ùi
-            W(i,i) = 0; % ÏÈÉèÎª0£¬ºóÃæ¼ÆËã
-        elseif Graph(i,j) > 0 % iºÍjÊÇÁÚ¾Ó
+            % å¯¹è§’å…ƒç´ ï¼šW(i,i) = 1 - sum(W(i,j)) for jâ‰ i
+            W(i,i) = 0; % å…ˆè®¾ä¸º0ï¼Œåé¢è®¡ç®—
+        elseif Graph(i,j) > 0 % iå’Œjæ˜¯é‚»å±…
             neighbors_j = find(Graph(j,:) > 0);
             neighbors_j = [neighbors_j, j];
             neighbors_j = unique(neighbors_j);
             degree_j = length(neighbors_j) - 1;
             
-            % Metropolis-HastingsÈ¨ÖØ¹«Ê½
+            % Metropolis-Hastingsæƒé‡å…¬å¼
             W(i,j) = 1 / (1 + max(degree_i, degree_j));
         else
-            % ·ÇÁÚ¾Ó½ÚµãÈ¨ÖØÎª0
+            % éé‚»å±…èŠ‚ç‚¹æƒé‡ä¸º0
             W(i,j) = 0;
         end
     end
     
-    % ¼ÆËã¶Ô½ÇÔªËØ£¬È·±£ĞĞºÍÎª1
+    % è®¡ç®—å¯¹è§’å…ƒç´ ï¼Œç¡®ä¿è¡Œå’Œä¸º1
     W(i,i) = 1 - sum(W(i,1:Value_Params.N)) + W(i,i);
 end
 
-% ³õÊ¼»¯ËùÓĞValue_data½á¹¹Ìå¡¢ÁªÃË½á¹¹¡¢beliefºÍ¹Û²â¾ØÕó
+% åˆå§‹åŒ–æ‰€æœ‰Value_dataç»“æ„ä½“ã€è”ç›Ÿç»“æ„ã€beliefå’Œè§‚æµ‹çŸ©é˜µ
 for i = 1:Value_Params.N
-    % »ù±¾ĞÅÏ¢³õÊ¼»¯
+    % åŸºæœ¬ä¿¡æ¯åˆå§‹åŒ–
     Value_data(i).agentID = agents(i).id;
     Value_data(i).agentIndex = i;
-    Value_data(i).iteration = 0; % ÁªÃË¸Ä±ä´ÎÊı
-    Value_data(i).unif = 0; % ¾ùÔÈËæ»ú±äÁ¿
+    Value_data(i).iteration = 0; % è”ç›Ÿæ”¹å˜æ¬¡æ•°
+    Value_data(i).unif = 0; % å‡åŒ€éšæœºå˜é‡
     Value_data(i).coalitionstru = zeros(Value_Params.M+1, Value_Params.N);
     Value_data(i).initbelief = zeros(Value_Params.M+1, 3);
     
-    % ½«ËùÓĞ»úÆ÷ÈË·ÅÔÚ¿ÕÈÎÎñÁªÃËÖĞ
+    % å°†æ‰€æœ‰æœºå™¨äººæ”¾åœ¨ç©ºä»»åŠ¡è”ç›Ÿä¸­
     Value_data(i).coalitionstru(Value_Params.M+1, :) = [agents.id];
     
-    % ³õÊ¼»¯beliefºÍ¹Û²â¾ØÕó
+    % åˆå§‹åŒ–beliefå’Œè§‚æµ‹çŸ©é˜µ
     for j = 1:Value_Params.M
         Value_data(i).initbelief(j, 1:end) = Value_Params.InitialBelief;
         for k = 1:Value_Params.K
@@ -59,26 +59,26 @@ for i = 1:Value_Params.N
     end
 end
 
-% ³õÊ¼»¯summatrix
+% åˆå§‹åŒ–summatrix
 summatrix = zeros(Value_Params.M, Value_Params.K);
 
-%% Ö÷Òª¼ÆËã¹ı³Ì
+%% ä¸»è¦è®¡ç®—è¿‡ç¨‹
 for counter=1:50
 
-    % ³õÊ¼»¯²¢¸üĞÂÃ¿¸öÖÇÄÜÌå£¨agent£©ÔÚÃ¿ÂÖµü´úÖĞµÄÈÎÎñ¹À¼Æ¸ÅÂÊ£¨prob£©
+    % åˆå§‹åŒ–å¹¶æ›´æ–°æ¯ä¸ªæ™ºèƒ½ä½“ï¼ˆagentï¼‰åœ¨æ¯è½®è¿­ä»£ä¸­çš„ä»»åŠ¡ä¼°è®¡æ¦‚ç‡ï¼ˆprobï¼‰
     for i=1:Value_Params.N   
         for j=1:Value_Params.M
             Value_data(i).tasks(j).prob(counter,:)=Value_data(i).initbelief(j,1:end);
         end
     end
     
-    T=1;   %µü´ú´ÎÊı
+    T=1;   %è¿­ä»£æ¬¡æ•°
     lastTime=T-1;
-    doneflag=0;   %³õÊ¼±êÖ¾Î»0£¬ÊÕÁ²±êÖ¾Î»Îª1
+    doneflag=0;   %åˆå§‹æ ‡å¿—ä½0ï¼Œæ”¶æ•›æ ‡å¿—ä½ä¸º1
     
     while( doneflag==0)
         
-        %ËùÓĞagentsÑ¡Ôñ×ÔÖ÷ÈÎÎñ
+        %æ‰€æœ‰agentsé€‰æ‹©è‡ªä¸»ä»»åŠ¡
         for ii=1:Value_Params.N
             [incremental(ii),curnumberrow(ii),Value_data(ii)]=Value_order(agents, tasks, Value_data(ii), Value_Params);
             incremental(ii);
@@ -90,29 +90,29 @@ for counter=1:50
             lastTime=T;
         end
         
-        % ÖÇÄÜÌåÖ®¼äÍ¨ĞÅ
+        % æ™ºèƒ½ä½“ä¹‹é—´é€šä¿¡
         Value_data=Value_communication(agents, tasks, Value_data, Value_Params,Graph);
         
-        % ¼ì²éÊÇ·ñÊÕÁ²
-        if (T-lastTime>2) %Á¬ĞøÁ½´Îµü´úÎ´¸Ä±äÁªÃË½á¹¹£¬ÈÏÎªÊÕÁ²
+        % æ£€æŸ¥æ˜¯å¦æ”¶æ•›
+        if (T-lastTime>2) %è¿ç»­ä¸¤æ¬¡è¿­ä»£æœªæ”¹å˜è”ç›Ÿç»“æ„ï¼Œè®¤ä¸ºæ”¶æ•›
             doneflag=1;
         else
             T=T+1; 
         end
     end
     
-    if counter==1 %¼ÇÂ¼µÚÒ»´ÎÁªÃËĞÎ³É½á¹¹
+    if counter==1 %è®°å½•ç¬¬ä¸€æ¬¡è”ç›Ÿå½¢æˆç»“æ„
         for j=1:Value_Params.M
-            initial_coalition(j).member=find(Value_data(1).coalitionstru(j,:)~=0); % ¼ÇÂ¼ÁªÃË³ÉÔ±
+            initial_coalition(j).member=find(Value_data(1).coalitionstru(j,:)~=0); % è®°å½•è”ç›Ÿæˆå‘˜
         end
     end
     
-    %% ¸ù¾İĞÎ³ÉµÄÁªÃËÊµÏÖÖÇÄÜÌå¶Ôµ±Ç°ÈÎÎñµÄ¶à´ÎËæ»ú¹Û²â¸üĞÂ
-    % ¼ÙÉèÆäËûÊäÈë²ÎÊıÒÑ¾­¶¨Òå²¢³õÊ¼»¯¸üĞÂÃ¿¸öÖÇÄÜÌåµÄobserve½á¹¹Ìå
-    % ¶ÔÓÚËù¹Û²âÈÎÎñµÄÈıÖÖÀàĞÍµÄ´ÎÊı
+    %% æ ¹æ®å½¢æˆçš„è”ç›Ÿå®ç°æ™ºèƒ½ä½“å¯¹å½“å‰ä»»åŠ¡çš„å¤šæ¬¡éšæœºè§‚æµ‹æ›´æ–°
+    % å‡è®¾å…¶ä»–è¾“å…¥å‚æ•°å·²ç»å®šä¹‰å¹¶åˆå§‹åŒ–æ›´æ–°æ¯ä¸ªæ™ºèƒ½ä½“çš„observeç»“æ„ä½“
+    % å¯¹äºæ‰€è§‚æµ‹ä»»åŠ¡çš„ä¸‰ç§ç±»å‹çš„æ¬¡æ•°
     Value_data = updateObservations(Value_data, tasks, curnumberrow, agents, AddPara, Value_Params);
 
-    %% ×ÛºÏËùÓĞÖÇÄÜÌåĞÅÏ¢¹Û²â¾ØÕó
+    %% ç»¼åˆæ‰€æœ‰æ™ºèƒ½ä½“ä¿¡æ¯è§‚æµ‹çŸ©é˜µ
     % for j=1:Value_Params.M
     %     for k=1:3
     %         for i=1:Value_Params.N
@@ -131,7 +131,7 @@ for counter=1:50
     % end
 
 
-    %% ¸ù¾İÁªÃËĞÎ³ÉºóµÄ½á¹û¸üĞÂĞÅÄî
+    %% æ ¹æ®è”ç›Ÿå½¢æˆåçš„ç»“æœæ›´æ–°ä¿¡å¿µ
     % for i=1:Value_Params.N
     %     for j=1:Value_Params.M
     %         Value_data(i).initbelief(j,1:end)=drchrnd([1+Value_data(i).observe(j,1),1+Value_data(i).observe(j,2),1+Value_data(i).observe(j,3)],1)';
@@ -140,43 +140,43 @@ for counter=1:50
     % end
     
 
-    %% ĞÅÏ¢ÈÚºÏ
-    % Ê¹ÓÃ·Ö²¼Ê½¹²Ê¶Ëã·¨½øĞĞĞÅÏ¢ÈÚºÏ
+    %% ä¿¡æ¯èåˆ
+    % ä½¿ç”¨åˆ†å¸ƒå¼å…±è¯†ç®—æ³•è¿›è¡Œä¿¡æ¯èåˆ
     Value_data = Info_fusion(Value_data, Graph, Value_Params,W);
     
-    %% ¼ÆËãÁªÃË³É±¾¡¢ÊÕÒæºÍ¾»ÀûÈó
-    % ³õÊ¼»¯³É±¾¾ØÕó£¬ĞĞ´ú±íÈÎÎñ£¬ÁĞ´ú±íÖÇÄÜÌå
+    %% è®¡ç®—è”ç›Ÿæˆæœ¬ã€æ”¶ç›Šå’Œå‡€åˆ©æ¶¦
+    % åˆå§‹åŒ–æˆæœ¬çŸ©é˜µï¼Œè¡Œä»£è¡¨ä»»åŠ¡ï¼Œåˆ—ä»£è¡¨æ™ºèƒ½ä½“
     Rcost = zeros(Value_Params.M, Value_Params.N);
     
-    % ¼ÆËãÃ¿¸öÈÎÎñÁªÃËµÄĞĞ¶¯³É±¾
+    % è®¡ç®—æ¯ä¸ªä»»åŠ¡è”ç›Ÿçš„è¡ŒåŠ¨æˆæœ¬
     for j = 1:Value_Params.M
-        % ÕÒµ½ÈÎÎñ j µÄÁªÃË³ÉÔ±£¨·ÇÁãÎ»ÖÃ¶ÔÓ¦µÄÖÇÄÜÌåID£©
+        % æ‰¾åˆ°ä»»åŠ¡ j çš„è”ç›Ÿæˆå‘˜ï¼ˆéé›¶ä½ç½®å¯¹åº”çš„æ™ºèƒ½ä½“IDï¼‰
         coalition(j).members = find(Value_data(1).coalitionstru(j,:) ~= 0);
         
-        % ¼ÆËãÁªÃËÖĞÃ¿¸öÖÇÄÜÌåµ½ÈÎÎñµÄ¾àÀë³É±¾
+        % è®¡ç®—è”ç›Ÿä¸­æ¯ä¸ªæ™ºèƒ½ä½“åˆ°ä»»åŠ¡çš„è·ç¦»æˆæœ¬
         for i = 1:length(coalition(j).members)
-            agentIdx = coalition(j).members(i); % ÖÇÄÜÌåË÷Òı
-            % ³É±¾ = Å·ÊÏ¾àÀë ¡Á È¼ÁÏµ¥¼Û
+            agentIdx = coalition(j).members(i); % æ™ºèƒ½ä½“ç´¢å¼•
+            % æˆæœ¬ = æ¬§æ°è·ç¦» Ã— ç‡ƒæ–™å•ä»·
             Rcost(j,i) = sqrt((agents(agentIdx).x - tasks(j).x)^2 + ...
                              (agents(agentIdx).y - tasks(j).y)^2) * agents(agentIdx).fuel;
         end
     end
     
-    % ¼ÆËãµ±Ç°ÂÖ´ÎµÄ×Ü³É±¾
+    % è®¡ç®—å½“å‰è½®æ¬¡çš„æ€»æˆæœ¬
     cost_sum(counter) = 0;
-    for j = 1:size(Rcost,1)      % ±éÀúËùÓĞÈÎÎñ
-        for i = 1:size(Rcost,2)  % ±éÀúËùÓĞÖÇÄÜÌåÎ»ÖÃ
+    for j = 1:size(Rcost,1)      % éå†æ‰€æœ‰ä»»åŠ¡
+        for i = 1:size(Rcost,2)  % éå†æ‰€æœ‰æ™ºèƒ½ä½“ä½ç½®
             cost_sum(counter) = cost_sum(counter) + Rcost(j,i);
         end
     end
     
-    % ¼ÆËãµ±Ç°ÂÖ´ÎµÄ×ÜÊÕÒæ£¨ËùÓĞÈÎÎñ¼ÛÖµÖ®ºÍ£©
+    % è®¡ç®—å½“å‰è½®æ¬¡çš„æ€»æ”¶ç›Šï¼ˆæ‰€æœ‰ä»»åŠ¡ä»·å€¼ä¹‹å’Œï¼‰
     revenue_sum(counter) = 0;
     for j = 1:Value_Params.M
         revenue_sum(counter) = revenue_sum(counter) + tasks(j).value;
     end
     
-    % ¼ÆËã¾»ÀûÈó = ×ÜÊÕÒæ - ×Ü³É±¾
+    % è®¡ç®—å‡€åˆ©æ¶¦ = æ€»æ”¶ç›Š - æ€»æˆæœ¬
     net_profit(counter) = revenue_sum(counter) - cost_sum(counter);
     
     counter=counter+1;
