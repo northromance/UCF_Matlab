@@ -137,6 +137,8 @@ m_unnorm(4) = Q_total(4) - Q_total(1) - Q_total(2) + Q_total(3);  % m(∅)，空
 % =========================================================================
 % 由于数值计算误差，可能会产生非零的空集质量m(∅)
 % 需要进行Dempster归一化以确保质量函数的有效性
+sum_m_unnorm = m_unnorm(1)+m_unnorm(2)+m_unnorm(3);
+fprintf('\n[检查] 归一化后 mass 之和 = %.12f (应接近 1.0)\n', sum_m_unnorm);
 
 K = 1 / (1 - m_unnorm(4));  % 计算归一化常数K = 1/(1-m(∅))
 m_norm = m_unnorm * K;      % 归一化：将非空集的质量按比例放大

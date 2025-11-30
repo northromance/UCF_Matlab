@@ -112,34 +112,6 @@ for counter=1:50
     % 对于所观测任务的三种类型的次数
     Value_data = updateObservations(Value_data, tasks, curnumberrow, agents, AddPara, Value_Params);
 
-    %% 综合所有智能体信息观测矩阵
-    % for j=1:Value_Params.M
-    %     for k=1:3
-    %         for i=1:Value_Params.N
-    %             summatrix(j,k)=summatrix(j,k)+ Value_data(i).observe(j,  k)-Value_data(i).preobserve(j,  k);
-    %         end
-    %     end
-    % end
-    % 
-    % for i=1:Value_Params.N
-    %     for j=1:Value_Params.M
-    %         for k=1:3
-    %             Value_data(i).preobserve(j,k)= summatrix(j,k);
-    %             Value_data(i).observe(j,  k)= summatrix(j,k);
-    %         end
-    %     end
-    % end
-
-
-    %% 根据联盟形成后的结果更新信念
-    % for i=1:Value_Params.N
-    %     for j=1:Value_Params.M
-    %         Value_data(i).initbelief(j,1:end)=drchrnd([1+Value_data(i).observe(j,1),1+Value_data(i).observe(j,2),1+Value_data(i).observe(j,3)],1)';
-    %         Value_data(i).initbelief(j,1:end)=[1/3,1/3,1/3];
-    %     end
-    % end
-    
-
     %% 信息融合
     % 使用分布式共识算法进行信息融合
     Value_data = Info_fusion(Value_data, Graph, Value_Params,W);
