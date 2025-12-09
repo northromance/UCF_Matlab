@@ -67,30 +67,9 @@ for j=1:Value_Params.M
 end
 
 %% 打印
-fprintf('Total cost: %.2f\n', 10);
-
-
-%% 绘图
-% % 绘制任务与 agent 的分配情况
-% figure()
-% PlotValue(agents,tasks,lianmengchengyuan,G)
-% axis([0,100,0,100])
-% xlabel('x-axis (m)','FontName','Times New Roman','FontSize',14)
-% ylabel('y-axis (m)','FontName','Times New Roman','FontSize',14)
-% grid on
+% fprintf('Total cost: %.2f\n', 10);
 % 
 % 
-% % 绘制任务分配连线图
-% figure()
-% VlineAssignments(agents,tasks,G)
-% xlabel('x-axis (m)','FontName','Times New Roman','FontSize',14)
-% ylabel('y-axis (m)','FontName','Times New Roman','FontSize',14)
-% grid on
-% axis([0,100,0,100])
-% 
-% 
-% 
-% % 计算每个 agent 对每个任务在各回合的期望收益
 % for i=1:N
 %     for j=1:M
 %         for k=1:50
@@ -98,8 +77,8 @@ fprintf('Total cost: %.2f\n', 10);
 %         end
 %     end
 % end
-% 
-% % 绘制每个任务的期望收益曲线（每 4 回合为一点，按 agent 区分）
+% % 
+% % % 绘制每个任务的期望收益曲线（每 4 回合为一点，按 agent 区分）
 % time=1:4:50;
 % for j=1:M
 %     figure()
@@ -111,11 +90,3 @@ fprintf('Total cost: %.2f\n', 10);
 %     ylabel('Expected task revenue','FontName','Times New Roman','FontSize',14);
 %     grid on
 % end
-% 
-% % 绘制全局效用随迭代次数的变化
-% figure()
-% plot(1:20,net_profit,'o-')
-% xlabel('Number of iterations ','FontSize', 14)
-% ylabel('Global utility ','FontSize', 14)
-% set(gca, 'FontSize', 12)
-% grid on

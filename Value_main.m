@@ -106,16 +106,25 @@ for counter=1:50
             initial_coalition(j).member=find(Value_data(1).coalitionstru(j,:)~=0); % 记录联盟成员
         end
     end
-    
+
+
+    %% 原始Huo算法中比较
+   % Value_data1 = Value_data;
+   % % 
+   % Value_data1 = Huo2023updateObservationsAndBeliefs(Value_data1, tasks, agents, Value_Params, curnumberrow);
+   % 
+   % 
+   %  Value_data = Value_data1;
     %% 根据形成的联盟实现智能体对当前任务的多次随机观测更新
     % 假设其他输入参数已经定义并初始化更新每个智能体的observe结构体
     % 对于所观测任务的三种类型的次数
+    
     Value_data = updateObservations(Value_data, tasks, curnumberrow, agents, AddPara, Value_Params);
 
     %% 信息融合
     % 使用分布式共识算法进行信息融合
     Value_data = Info_fusion(Value_data, Graph, Value_Params,W);
-    
+
     %% 计算联盟成本、收益和净利润
     % 初始化成本矩阵，行代表任务，列代表智能体
     Rcost = zeros(Value_Params.M, Value_Params.N);
