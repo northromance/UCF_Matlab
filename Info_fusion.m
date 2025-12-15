@@ -1,4 +1,4 @@
-function [Value_data] = Info_fusion(Value_data, Graph, Value_Params,W)
+function [Value_data] = Info_fusion(Value_data, Value_Params,W)
 
 % 共识参数设置
 max_consensus_iter = 1000;  % 最大共识迭代次数

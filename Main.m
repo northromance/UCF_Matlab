@@ -6,7 +6,7 @@ tic
 SEED=24375;
 rand('seed',SEED); % 设置随机种子以保证结果可复现
 addpath('ColitionFormation');
-
+addpath('SA_ColitionFormation');
 WORLD.XMIN=0;
 WORLD.XMAX=100;
 WORLD.YMIN=0;
@@ -21,31 +21,37 @@ K=3; % 任务类型
 InitialBelief = ones(1,K)*1/3; % 初始 belief 分布，均匀分布
 AddPara.NumObs = 20; % 每个智能体对每个任务的观测次数
 detprob = 0.9; %识别错误的概率
+Temperature = 100;
+Tmin = 0.001;
+alpha = 0.96;
+max_stable_iterations = 10;
 %% 初始化 agents 和 tasks
 for j=1:M
     tasks(j).id=j;
     tasks(j).x=round(rand(1)*(WORLD.XMAX-WORLD.XMIN)+WORLD.XMIN);
     tasks(j).y=round(rand(1)*(WORLD.YMAX-WORLD.YMIN)+WORLD.YMIN);
-    tasks(j).value=WORLD.value(randi(length(WORLD.value),1,1)); 
-    tasks(j).WORLD.value=[300,500,1000]; % 
+    tasks(j).value=WORLD.value(randi(length(WORLD.value),1,1));
+    tasks(j).WORLD.value=[300,500,1000]; %
+    tasks(j).WORLD.risk=[0,0,0]; %
+
 end
 
 for i=1:N
     agents(i).id=i;
-    agents(i).vel=2; 
-    agents(i).fuel=1; 
+    agents(i).vel=2;
+    agents(i).fuel=1;
     agents(i).x=round(rand(1)*(WORLD.XMAX-WORLD.XMIN)+WORLD.XMIN);
     agents(i).y=round(rand(1)*(WORLD.YMAX-WORLD.YMIN)+WORLD.YMIN);
     agents(i).detprob = detprob;
 end
 
-Value_Params=Value_init(N,M,K,InitialBelief); % 初始化参数结构体 智能体数目N 任务数目M 任务类型数目K
+Value_Params=Value_init(N,M,K,InitialBelief,Temperature,alpha,Tmin,max_stable_iterations); % 初始化参数结构体 智能体数目N 任务数目M 任务类型数目K
 
 %% 构建初始图
 [p, result] = Value_graph(agents, Value_Params);
 
 % 从 result 提取起点 S 和终点 E
-S = result(1, :); 
+S = result(1, :);
 E = result(2, :);
 
 % 构造邻接矩阵 G（N x N），并使其对称得到无向图 Graph
@@ -55,8 +61,11 @@ for j=1:size(result,2)
 end
 Graph=G+G'; % 一个矩阵表示连接矩阵
 
+% 计算Metropolis-Hastings权重矩阵
+W = Metropolis_Hastings_Weights(Graph, Value_Params);
 % 运行主计算函数，得到价值数据、成本、净收益及初始联盟结构
-[Value_data,Rcost,cost_sum,net_profit, initial_coalition]=Value_main(agents,tasks,Graph,Value_Params,AddPara);
+
+[Value_data,cost_sum,net_profit, initial_coalition]=Value_main(agents,tasks,W,Value_Params,AddPara);
 
 
 
@@ -68,8 +77,8 @@ end
 
 %% 打印
 % fprintf('Total cost: %.2f\n', 10);
-% 
-% 
+%
+%
 % for i=1:N
 %     for j=1:M
 %         for k=1:50
@@ -77,7 +86,7 @@ end
 %         end
 %     end
 % end
-% % 
+% %
 % % % 绘制每个任务的期望收益曲线（每 4 回合为一点，按 agent 区分）
 % time=1:4:50;
 % for j=1:M

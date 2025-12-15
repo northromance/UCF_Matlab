@@ -1,40 +1,8 @@
-function [Value_data,Rcost,cost_sum,net_profit, initial_coalition]= Value_main(agents,tasks,Graph,Value_Params,AddPara)
+function [Value_data,Rcost,cost_sum,net_profit, initial_coalition]= Value_main(agents,tasks,W,Value_Params,AddPara)
 % =========================================================================
 % Value_main: 联盟形成的主计算函数
 % =========================================================================
 
-%% 第三步：计算Metropolis-Hastings权重矩阵
-
-% 根据当前连接的拓扑图计算权重矩阵
-W = zeros(Value_Params.N, Value_Params.N);
-for i = 1:Value_Params.N
-    % 找到智能体i的邻居（包括自己）
-    neighbors_i = find(Graph(i,:) > 0);
-    neighbors_i = [neighbors_i, i]; % 添加自己
-    neighbors_i = unique(neighbors_i); % 去除重复
-    degree_i = length(neighbors_i) - 1; % 邻居数量（不包括自己）
-    
-    for j = 1:Value_Params.N
-        if i == j
-            % 对角元素：W(i,i) = 1 - sum(W(i,j)) for j≠i
-            W(i,i) = 0; % 先设为0，后面计算
-        elseif Graph(i,j) > 0 % i和j是邻居
-            neighbors_j = find(Graph(j,:) > 0);
-            neighbors_j = [neighbors_j, j];
-            neighbors_j = unique(neighbors_j);
-            degree_j = length(neighbors_j) - 1;
-            
-            % Metropolis-Hastings权重公式
-            W(i,j) = 1 / (1 + max(degree_i, degree_j));
-        else
-            % 非邻居节点权重为0
-            W(i,j) = 0;
-        end
-    end
-    
-    % 计算对角元素，确保行和为1
-    W(i,i) = 1 - sum(W(i,1:Value_Params.N)) + W(i,i);
-end
 
 % 初始化所有Value_data结构体、联盟结构、belief和观测矩阵
 for i = 1:Value_Params.N
@@ -45,10 +13,10 @@ for i = 1:Value_Params.N
     Value_data(i).unif = 0; % 均匀随机变量
     Value_data(i).coalitionstru = zeros(Value_Params.M+1, Value_Params.N);
     Value_data(i).initbelief = zeros(Value_Params.M+1, 3);
-    
-    % 将所有机器人放在空任务联盟中
+
+    % 将所有机器人放在空任务联盟中Value_Params.M+1为虚空任务联盟
     Value_data(i).coalitionstru(Value_Params.M+1, :) = [agents.id];
-    
+
     % 初始化belief和观测矩阵
     for j = 1:Value_Params.M
         Value_data(i).initbelief(j, 1:end) = Value_Params.InitialBelief;
@@ -59,108 +27,98 @@ for i = 1:Value_Params.N
     end
 end
 
-% 初始化summatrix
-summatrix = zeros(Value_Params.M, Value_Params.K);
-
 %% 主要计算过程
+% counter 为进行50次联盟形成及观测
 for counter=1:50
-
     % 初始化并更新每个智能体（agent）在每轮迭代中的任务估计概率（prob）
-    for i=1:Value_Params.N   
+    for i=1:Value_Params.N
         for j=1:Value_Params.M
             Value_data(i).tasks(j).prob(counter,:)=Value_data(i).initbelief(j,1:end);
         end
     end
-    
-    T=1;   %迭代次数
-    lastTime=T-1;
-    doneflag=0;   %初始标志位0，收敛标志位为1
-    
-    while( doneflag==0)
-        
-        %所有agents选择自主任务
-        for ii=1:Value_Params.N
-            [incremental(ii),curnumberrow(ii),Value_data(ii)]=Value_order(agents, tasks, Value_data(ii), Value_Params);
-            incremental(ii);
-        end
-        
-        if (length(find(incremental==0))==Value_Params.N)
-            lastTime= lastTime;
-        else
-            lastTime=T;
-        end
-        
-        % 智能体之间通信
-        Value_data=Value_communication(agents, tasks, Value_data, Value_Params,Graph);
-        
-        % 检查是否收敛
-        if (T-lastTime>2) %连续两次迭代未改变联盟结构，认为收敛
-            doneflag=1;
-        else
-            T=T+1; 
-        end
-    end
-    
-    if counter==1 %记录第一次联盟形成结构
-        for j=1:Value_Params.M
-            initial_coalition(j).member=find(Value_data(1).coalitionstru(j,:)~=0); % 记录联盟成员
-        end
-    end
 
 
-    %% 原始Huo算法中比较
-   % Value_data1 = Value_data;
-   % % 
-   % Value_data1 = Huo2023updateObservationsAndBeliefs(Value_data1, tasks, agents, Value_Params, curnumberrow);
-   % 
-   % 
-   %  Value_data = Value_data1;
+    T=1;   % 初始化迭代次数
+    doneflag=0; % 收敛收敛标志位为1
+    k_stable = 0;  % 初始化稳定轮数计数器
+
+    % 记录初始联盟结构
+    previous_coalitionstru = Value_data(1).coalitionstru;
+
+    while(doneflag == 0)
+        % 初始化增量数组，用来存储每个机器人的增量
+        incremental = zeros(1, Value_Params.N);
+
+        % 依次进行联盟结构的计算
+        for ii = 1:Value_Params.N
+            % 第一个计算完联盟结构后，记录当前联盟结构结果，传给下一个机器人
+            [incremental(ii), Value_data(ii)] = SA_Value_order(agents, tasks, Value_data(ii), Value_Params);
+
+            % 将当前机器人计算得到的联盟结构传递给下一个机器人
+            if ii < Value_Params.N
+                % 将当前机器人 ii 的联盟结构传递给下一个机器人 ii+1
+                Value_data(ii + 1).coalitionstru = Value_data(ii).coalitionstru;
+            end
+
+        end
+
+        % 更新温度（模拟退火的一部分）
+        Value_Params.Temperature = Value_Params.alpha * Value_Params.Temperature;
+
+        % 记录最后一个机器人的联盟结构为最终联盟结构
+        final_coalitionstru = Value_data(Value_Params.N).coalitionstru;
+
+        % 迭代次数加1
+        T = T+1;
+
+        % 判断是否联盟结构在多轮迭代后都没有发生变化
+        if isequal(previous_coalitionstru, final_coalitionstru)
+            % 如果联盟结构没有变化
+            k_stable = k_stable + 1;  % 增加稳定轮数
+        else
+            % 如果联盟结构发生了变化，更新previous_coalitionstru
+            k_stable = 0;  % 重置稳定轮数
+        end
+
+        % 判断是否连续多轮联盟结构没有变化，认为收敛
+        if k_stable >= Value_Params.max_stable_iterations || Value_Params.Temperature < Value_Params.Tmin
+            disp('Convergence detected: Coalition structure has stabilized for multiple iterations.');
+            doneflag = 1;  % 设置doneflag为1，结束循环
+        end
+
+        % 将当前最后联盟结构作为下一次的之前联盟结构
+        previous_coalitionstru = final_coalitionstru;  % 更新为当前联盟结构
+
+        % 传递给其他机器人的联盟结构
+        for ii = 1:Value_Params.N
+            Value_data(ii).coalitionstru = final_coalitionstru;
+        end
+    end
     %% 根据形成的联盟实现智能体对当前任务的多次随机观测更新
-    % 假设其他输入参数已经定义并初始化更新每个智能体的observe结构体
-    % 对于所观测任务的三种类型的次数
-    
+    % 初始化 curnumberrow，大小为智能体的数量
+    curnumberrow = zeros(1, Value_Params.N);  % 初始化每个智能体被分配的任务行号
+    for i = 1:Value_Params.N    % 遍历每个智能体
+        % 使用find函数查找任务分配给智能体i的位置
+        [curRow, ~] = find(final_coalitionstru(:, i) == i);  % 查找智能体i在final_coalitionstru中分配到的任务
+
+        if ~isempty(curRow)  % 如果找到了任务
+            curnumberrow(i) = curRow;  % 将智能体i分配的任务行号赋值给curnumberrow
+        else
+            curnumberrow(i) = Value_Params.M + 1;  % 如果没有分配任务，赋值为M+1
+        end
+    end
+    % 更新 Value_data的 observe
+
     Value_data = updateObservations(Value_data, tasks, curnumberrow, agents, AddPara, Value_Params);
 
     %% 信息融合
-    % 使用分布式共识算法进行信息融合
-    Value_data = Info_fusion(Value_data, Graph, Value_Params,W);
 
-    %% 计算联盟成本、收益和净利润
-    % 初始化成本矩阵，行代表任务，列代表智能体
-    Rcost = zeros(Value_Params.M, Value_Params.N);
-    
-    % 计算每个任务联盟的行动成本
-    for j = 1:Value_Params.M
-        % 找到任务 j 的联盟成员（非零位置对应的智能体ID）
-        coalition(j).members = find(Value_data(1).coalitionstru(j,:) ~= 0);
-        
-        % 计算联盟中每个智能体到任务的距离成本
-        for i = 1:length(coalition(j).members)
-            agentIdx = coalition(j).members(i); % 智能体索引
-            % 成本 = 欧氏距离 × 燃料单价
-            Rcost(j,i) = sqrt((agents(agentIdx).x - tasks(j).x)^2 + ...
-                             (agents(agentIdx).y - tasks(j).y)^2) * agents(agentIdx).fuel;
-        end
-    end
-    
-    % 计算当前轮次的总成本
-    cost_sum(counter) = 0;
-    for j = 1:size(Rcost,1)      % 遍历所有任务
-        for i = 1:size(Rcost,2)  % 遍历所有智能体位置
-            cost_sum(counter) = cost_sum(counter) + Rcost(j,i);
-        end
-    end
-    
-    % 计算当前轮次的总收益（所有任务价值之和）
-    revenue_sum(counter) = 0;
-    for j = 1:Value_Params.M
-        revenue_sum(counter) = revenue_sum(counter) + tasks(j).value;
-    end
-    
-    % 计算净利润 = 总收益 - 总成本
-    net_profit(counter) = revenue_sum(counter) - cost_sum(counter);
-    
-    counter=counter+1;
-    
+    % 使用分布式共识算法进行信息融合
+    Value_data = Info_fusion(Value_data, Value_Params,W);
+
+    counter = counter + 1;
+
 end
+
+
 end
