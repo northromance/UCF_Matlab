@@ -51,7 +51,7 @@ if maxDelta_U > 0
     incremental = 1;
 else
     % SA概率接受机制
-    acceptProb = exp(maxDelta_U / Value_Params.Temperature);
+    acceptProb = exp( maxDelta_U / Value_Params.Temperature);
     if acceptProb > rand()
         incremental = 1;
         Value_data.iteration = Value_data.iteration + 1;

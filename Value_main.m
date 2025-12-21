@@ -45,6 +45,7 @@ for counter=1:50
     T = 1;
     doneflag = 0;
     k_stable = 0;
+    Value_Params.Temperature = AddPara.Temperature;
 
     % 记录初始联盟结构
     previous_coalitionstru = Value_data(1).coalitionstru;

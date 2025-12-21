@@ -34,50 +34,6 @@ for i = 1:Value_Params.N
 end
 
 
-% for i = 1:Value_Params.N
-%     for j = 1:Value_Params.M
-%         % 计算任务j的观测次数
-%             Value_data(i).initbelief(j, 1:end) = drchrnd([1 + Value_data(i).observe(j, 1), ...
-%                                                           1 + Value_data(i).observe(j, 2), ...
-%                                                           1 + Value_data(i).observe(j, 3)], 1)';
-%     end
-% end
-
-% 利用Gamma分布进行建模的函数：drchrnd
-function r = drchrnd(a, n)
-    % a: Dirichlet分布的超参数（即伪计数）
-    % n: 生成的样本数量（即要生成多少个Dirichlet样本）
-    
-    % p: 计算 Dirichlet 分布的维度，即伪计数a的长度
-    p = length(a);  % a的长度，表示Dirichlet分布的维度
-    
-    % 生成Gamma分布样本
-    % repmat(a, n, 1): 将伪计数a向量沿着行方向重复n次，使每个样本的伪计数一致
-    % gamrnd: 从Gamma分布中生成随机数，形状参数由伪计数a指定，尺度参数为1
-    r = gamrnd(repmat(a, n, 1), 1, n, p);  % 从Gamma分布中生成随机数
-    
-    % 打印repmat(a, n, 1)的值，即每个样本的伪计数
-    disp('Repmat(a, n, 1) (伪计数矩阵):');
-    disp(repmat(a, n, 1));
-    
-    % 打印生成的Gamma分布样本
-    disp('Gamma samples (before normalization):');
-    disp(r);
-
-    % 对每一行进行归一化处理
-    % sum(r, 2): 计算每行的总和（即每个样本的总和）
-    % repmat(sum(r, 2), 1, p): 将每行的总和扩展成一个和r大小相同的矩阵
-    % r = r ./ repmat(sum(r, 2), 1, p): 将每行的每个元素除以该行的总和，确保每行的和为1
-    r = r ./ repmat(sum(r, 2), 1, p);  % 对每一行进行归一化
-    
-    % 打印归一化后的结果
-    disp('Normalized Gamma samples (Dirichlet samples):');
-    disp(r);
-end
-
-
-
-
 %% 第二步：计算共性函数（信念值的对数变换）
 % 每个智能体有一个j*k（6*3）的一个矩阵记录着对 每个任务的信念值的共性函数
 for i = 1:Value_Params.N    % i: 智能体索引 (1到N)，遍历所有智能体
@@ -103,7 +59,11 @@ end
 
 %% 第三步：线性共识算法
 
-for consensus_iter = 1:max_consensus_iter
+
+% 记录共性值变化的数组（每次迭代的共性值变化）
+belief_changes = zeros(max_consensus_iter, N);
+
+for consensus_iter = 1:200
     X_old = zeros(N, M*K);
 
     for i = 1:N
@@ -121,6 +81,8 @@ for consensus_iter = 1:max_consensus_iter
         tmp = reshape(X(i,:),[K, M])';    % 还原成 M × K 矩阵
         Value_data(i).commonality = tmp;   % 更新智能体的 commonality
     end
+
+
 
     %=========== 4. 检查收敛性：看本轮前后变化是否足够小 ===========%
     % 计算 X 和 X_old 之间的变化

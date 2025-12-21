@@ -7,6 +7,7 @@ SEED=24375;
 rand('seed',SEED); % 设置随机种子以保证结果可复现
 addpath('ColitionFormation');
 addpath('SA_ColitionFormation');
+addpath('Huo2025');
 WORLD.XMIN=0;
 WORLD.XMAX=100;
 WORLD.YMIN=0;
@@ -39,6 +40,7 @@ AddPara.ComranMax = 1; % completion rate 上限
 %% 算法调试参数
 AddPara.control_algorithm = 2;
 % 1为贪婪 2 为利他主义 3为全局主义 计算Delta_U(j)
+
 %% 初始化 agents 和 tasks
 for j=1:M
     tasks(j).id=j;
@@ -79,10 +81,82 @@ disp(Graph);
 W = Metropolis_Hastings_Weights(Graph, Value_Params);
 % 运行主计算函数，得到价值数据、最终联盟结构和每轮历史记录
 
-[Value_data, Final_coalitionstru, Coalition_History, Value_data_History] = Value_main(agents,tasks,W,Value_Params,AddPara);
+[Me_Value_data, Final_coalitionstru, Coalition_History, Value_data_History] = Value_main(agents,tasks,W,Value_Params,AddPara);
+
+[Huo_Value_data, Rcost,cost_sum, net_profit, initial_coalition] = Huo2025_Value_main(agents,tasks,Graph);
 
 % 显示最终联盟结果
 displayCoalitionResult(Final_coalitionstru, Value_Params);
-
+%%
 % 绘制每轮联盟总效用变化图（使用每轮的Value_data快照）
 plotCoalitionUtility(Coalition_History, Value_data_History, agents, tasks, Value_Params);
+
+
+%% Huo 绘图
+
+
+% 联盟成员
+for j=1:Value_Params.M
+    lianmengchengyuan(j).member=find(Huo_Value_data(1).coalitionstru(j,:)~=0);
+end
+
+%% 绘图
+figure()
+Huo_PlotValue(agents,tasks,lianmengchengyuan,Graph)
+axis([0,100,0,100])
+% hold on
+% initialValue2(TUAVs(RUAV_data(2).accept),RUAVs(2))
+% hold on
+% initialValue3(TUAVs(RUAV_data(3).accept),RUAVs(3))
+xlabel('x-axis (m)','FontName','Times New Roman','FontSize',14)
+ylabel('y-axis (m)','FontName','Times New Roman','FontSize',14)
+%set(gca, 'FontSize', 12)
+grid on
+
+% figure()
+% PlotValue(agents,tasks,lianmengchengyuan)
+% xlabel('Position in x(m) ','FontSize', 14)
+% ylabel('Position in y(m) ','FontSize', 14)
+% grid on
+
+
+%% 绘制分布图
+% figure()
+% VlineAssignments(agents,tasks,G)
+% xlabel('x-axis (m)','FontName','Times New Roman','FontSize',14)
+% ylabel('y-axis (m)','FontName','Times New Roman','FontSize',14)
+% %set(gca, 'FontSize', 12)
+% grid on
+% axis([0,100,0,100])
+
+
+
+% % 计算最终形成的价值
+% for i=1:N % 遍历所有智能体
+%     for j=1:M % 遍历所有任务
+%         for k=1:50 % 遍历每个任务的50个可能状态或时间点
+%             % 对每个任务的prob(k,:)的三个值进行加权求和，存储结果在sumprob(i,j).value(k)
+%             sumprob(i,j).value(k)=Huo_Value_data(i).tasks(j).prob(k,1)*300+Huo_Value_data(i).tasks(j).prob(k,2)*500+Huo_Value_data(i).tasks(j).prob(k,3)*1000;
+%         end
+%     end
+% end
+% 
+% 
+% time=1:4:50;
+% for j=1:M
+%     figure()
+%     plot(time,sumprob(1,j).value(1:4:50),'-+',time,sumprob(2,j).value(1:4:50),'-o',time,sumprob(3,j).value(1:4:50),'-x',time,sumprob(4,j).value(1:4:50),'-*',time,sumprob(5,j).value(1:4:50),'-v'...
+%         ,time,sumprob(6,j).value(1:4:50),'-^',time,sumprob(7,j).value(1:4:50),'-s',time,sumprob(8,j).value(1:4:50),'-d',time,sumprob(9,j).value(1:4:50),'-p',time,sumprob(10,j).value(1:4:50),'-h')
+%     h=legend('$r_1$','$r_2$','$r_3$','$r_4$','$r_5$','$r_6$','$r_7$','$r_8$','$r_9$','$r_{10}$');
+%     set(h,'Interpreter','latex','FontName','Times New Roman','FontSize',12,'FontWeight','normal');
+%     xlabel('Index of game','FontName','Times New Roman','FontSize',14);
+%     ylabel('Expected task revenue','FontName','Times New Roman','FontSize',14);
+%     grid on
+% end
+%%
+figure()
+plot(1:50,net_profit,'o-')
+xlabel('Number of iterations ','FontSize', 14)
+ylabel('Global utility ','FontSize', 14)
+set(gca, 'FontSize', 12)
+grid on
